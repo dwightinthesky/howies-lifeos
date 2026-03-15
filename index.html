@@ -269,6 +269,31 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
 /* DASH */
 .dbody{display:grid;grid-template-columns:1fr 298px;gap:18px}
 .dmain{min-width:0}.dside{min-width:0}
+.final-card{background:linear-gradient(135deg,rgba(200,255,87,.08),rgba(87,217,255,.05));border:1px solid rgba(200,255,87,.2);border-radius:10px;padding:16px 16px 14px;margin-bottom:16px}
+.final-top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.final-title{font-family:var(--f-disp);font-size:18px;font-weight:800;letter-spacing:-.02em}
+.final-sub{font-size:10px;color:var(--muted);font-family:var(--f-mono);letter-spacing:.05em}
+.final-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.final-controls .fi{width:190px;padding:6px 9px;font-size:11.5px}
+.flip-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.flip-unit{text-align:center}
+.flip-label{font-size:9px;color:var(--muted);font-family:var(--f-mono);letter-spacing:.08em;text-transform:uppercase;margin-top:7px}
+.flip-card{position:relative;height:76px;min-width:84px;border-radius:8px;overflow:hidden;border:1px solid var(--border2);background:var(--surf);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);perspective:700px}
+.flip-card.days{min-width:110px}
+.flip-card::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:var(--border2);z-index:6}
+.flip-half{position:absolute;left:0;right:0;height:50%;display:flex;align-items:center;justify-content:center;font-family:var(--f-disp);font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;background:var(--surf)}
+.flip-static-top,.flip-anim-top{top:0;align-items:flex-end;padding-bottom:4px;font-size:34px;background:linear-gradient(to bottom,var(--surf2),var(--surf))}
+.flip-static-bottom,.flip-anim-bottom{bottom:0;align-items:flex-start;padding-top:4px;font-size:34px;background:linear-gradient(to bottom,var(--surf),var(--surf2))}
+.flip-anim-top,.flip-anim-bottom{z-index:8;backface-visibility:hidden;display:none}
+.flip-anim-top{transform-origin:bottom center}
+.flip-anim-bottom{transform-origin:top center;transform:rotateX(90deg)}
+.flip-card.flipping .flip-anim-top{display:flex;animation:fftop .34s ease-in forwards}
+.flip-card.flipping .flip-anim-bottom{display:flex;animation:ffbottom .34s ease-out .34s forwards}
+@keyframes fftop{from{transform:rotateX(0)}to{transform:rotateX(-90deg)}}
+@keyframes ffbottom{from{transform:rotateX(90deg)}to{transform:rotateX(0)}}
+@media (max-width:980px){
+  .flip-row{grid-template-columns:1fr}
+}
 
 /* PAGE ANIM */
 .pb>*{animation:pf .2s ease}
@@ -349,6 +374,48 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
       </div>
     </div>
     <div class="pb">
+      <div class="final-card">
+        <div class="final-top">
+          <div>
+            <div class="final-title">Final Countdown</div>
+            <div class="final-sub" id="finalsub">Target: —</div>
+          </div>
+          <div class="final-controls">
+            <input type="datetime-local" class="fi" id="finaltarget">
+            <button class="btn sm" onclick="saveFinalTarget()">Set Final</button>
+            <button class="btn sm ghost" onclick="resetFinalTarget()">Auto</button>
+          </div>
+        </div>
+        <div class="flip-row">
+          <div class="flip-unit">
+            <div class="flip-card days" id="ff-days" data-value="">
+              <div class="flip-half flip-static-top">000</div>
+              <div class="flip-half flip-static-bottom">000</div>
+              <div class="flip-half flip-anim-top">000</div>
+              <div class="flip-half flip-anim-bottom">000</div>
+            </div>
+            <div class="flip-label">Days</div>
+          </div>
+          <div class="flip-unit">
+            <div class="flip-card" id="ff-hours" data-value="">
+              <div class="flip-half flip-static-top">00</div>
+              <div class="flip-half flip-static-bottom">00</div>
+              <div class="flip-half flip-anim-top">00</div>
+              <div class="flip-half flip-anim-bottom">00</div>
+            </div>
+            <div class="flip-label">Hours</div>
+          </div>
+          <div class="flip-unit">
+            <div class="flip-card" id="ff-seconds" data-value="">
+              <div class="flip-half flip-static-top">00</div>
+              <div class="flip-half flip-static-bottom">00</div>
+              <div class="flip-half flip-anim-top">00</div>
+              <div class="flip-half flip-anim-bottom">00</div>
+            </div>
+            <div class="flip-label">Seconds</div>
+          </div>
+        </div>
+      </div>
       <div class="stats" id="dstats"></div>
       <div class="dbody">
         <div class="dmain"><div class="sl">Pending tasks</div><div id="dtodos"></div></div>
@@ -591,6 +658,10 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
 let S={todos:[],projects:[],courses:[],internships:[],reminders:[],events:[],googleEvents:[],appleEvents:[],gOK:false,aOK:false};
 const DR=[{id:uid(),name:'房租',freq:'monthly',day:1,icon:'🏠'},{id:uid(),name:'水電費',freq:'monthly',day:5,icon:'💡'},{id:uid(),name:'諮商',freq:'weekly',day:3,icon:'🧠'}];
 const ICLOUD_SYNC_ENDPOINT='/api/icloud-calendar';
+const FINAL_KEY='h_os5_final_target';
+const FINAL_MATCH=/(final|finals|final exam|exam|midterm|期末|大考)/i;
+const FINAL_FALLBACK_DAYS=30;
+let FINAL_TIMER=null;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function save(){localStorage.setItem('h_os5',JSON.stringify(S))}
 function load(){const d=localStorage.getItem('h_os5');if(d){try{S={...S,...JSON.parse(d)}}catch{}}else{S.reminders=DR;save()}}
@@ -611,6 +682,49 @@ function renderBar(){
   const tr=S.reminders.filter(r=>r.freq==='weekly'?parseInt(r.day)===n.getDay():parseInt(r.day)===n.getDate());
   document.getElementById('tchips').innerHTML=tr.map(r=>`<div class="tchip">${r.icon||'🔔'} ${r.name}</div>`).join('');
 }
+function readManualFinalTarget(){const v=localStorage.getItem(FINAL_KEY);if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d}
+function toLocalDateTimeInput(d){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,16)}
+function eventToDate(e){if(!e?.date)return null;const t=e.time?(e.time.length===5?`${e.time}:00`:e.time):'23:59:59';const d=new Date(`${e.date}T${t}`);return Number.isNaN(d.getTime())?null:d}
+function findAutoFinalTarget(){
+  const now=Date.now();
+  const all=[...S.events,...S.googleEvents,...S.appleEvents];
+  const matches=all.filter(e=>FINAL_MATCH.test((e.title||'').toLowerCase())).map(e=>({title:e.title||'Final',dt:eventToDate(e)})).filter(e=>e.dt&&e.dt.getTime()>=now).sort((a,b)=>a.dt-b.dt);
+  return matches[0]||null;
+}
+function resolveFinalTarget(){
+  const manual=readManualFinalTarget();
+  if(manual)return{target:manual,label:'Manual target',source:'manual'};
+  const auto=findAutoFinalTarget();
+  if(auto)return{target:auto.dt,label:auto.title,source:'calendar'};
+  const fb=new Date();fb.setDate(fb.getDate()+FINAL_FALLBACK_DAYS);fb.setHours(23,59,59,0);
+  return{target:fb,label:'Fallback +30 days',source:'fallback'};
+}
+function setFlipCardValue(id,nextVal){
+  const card=document.getElementById(id);if(!card)return;
+  const next=String(nextVal),prev=card.dataset.value||'';
+  const st=card.querySelector('.flip-static-top'),sb=card.querySelector('.flip-static-bottom'),at=card.querySelector('.flip-anim-top'),ab=card.querySelector('.flip-anim-bottom');
+  if(!prev){[st,sb,at,ab].forEach(el=>el.textContent=next);card.dataset.value=next;return}
+  if(prev===next)return;
+  st.textContent=prev;sb.textContent=prev;at.textContent=prev;ab.textContent=next;
+  card.classList.remove('flipping');void card.offsetWidth;card.classList.add('flipping');
+  clearTimeout(card._flipDone);
+  card._flipDone=setTimeout(()=>{[st,sb,at,ab].forEach(el=>el.textContent=next);card.dataset.value=next;card.classList.remove('flipping')},720);
+}
+function updateFinalCountdown(){
+  const info=resolveFinalTarget(),now=Date.now();
+  let sec=Math.floor((info.target.getTime()-now)/1000);if(sec<0)sec=0;
+  const days=Math.floor(sec/86400),hours=Math.floor((sec%86400)/3600),seconds=sec%60;
+  setFlipCardValue('ff-days',String(days).padStart(3,'0'));
+  setFlipCardValue('ff-hours',String(hours).padStart(2,'0'));
+  setFlipCardValue('ff-seconds',String(seconds).padStart(2,'0'));
+  const sub=document.getElementById('finalsub');
+  if(sub){sub.textContent=sec===0?'Final has started.':`${info.label} · ${info.source.toUpperCase()} · ${info.target.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`}
+  const input=document.getElementById('finaltarget');
+  if(input&&document.activeElement!==input){const manual=readManualFinalTarget();if(manual){input.value=toLocalDateTimeInput(manual)}else if(!input.dataset.seeded){input.value=toLocalDateTimeInput(info.target);input.dataset.seeded='1'}}
+}
+function startFinalCountdown(){updateFinalCountdown();if(FINAL_TIMER)return;FINAL_TIMER=setInterval(updateFinalCountdown,1000)}
+function saveFinalTarget(){const input=document.getElementById('finaltarget');if(!input||!input.value){alert('Pick a final date/time first.');return}const d=new Date(input.value);if(Number.isNaN(d.getTime())){alert('Invalid date/time.');return}localStorage.setItem(FINAL_KEY,d.toISOString());updateFinalCountdown()}
+function resetFinalTarget(){localStorage.removeItem(FINAL_KEY);const input=document.getElementById('finaltarget');if(input){input.value='';delete input.dataset.seeded}updateFinalCountdown()}
 function renderDash(){
   const n=new Date(),h=n.getHours();
   document.getElementById('dgreeting').innerHTML=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+', <span>Howie.</span>';
@@ -625,6 +739,7 @@ function renderDash(){
   document.getElementById('drems').innerHTML=S.reminders.slice(0,5).map(r=>`<div class="remrow" style="margin-bottom:6px"><span class="remica">${r.icon||'🔔'}</span><span class="remname">${r.name}</span><span class="tag ${r.freq==='weekly'?'accent':'green'}" style="font-size:9px">${r.freq}</span></div>`).join('');
   const sc={wishlist:{l:'Wishlist',c:'var(--muted)'},applied:{l:'Applied',c:'var(--amber)'},oa:{l:'OA',c:'var(--accent)'},interview:{l:'Interview',c:'var(--accent2)'},offer:{l:'Offer',c:'var(--green)'}};
   document.getElementById('dfunnel').innerHTML=['wishlist','applied','oa','interview','offer'].map(s=>{const n2=S.internships.filter(i=>i.stage===s).length;return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted);font-family:var(--f-mono)">${sc[s].l}</span><span style="font-family:var(--f-disp);font-size:20px;font-weight:800;letter-spacing:-.04em;color:${n2>0?sc[s].c:'rgba(255,255,255,.1)'}">${n2}</span></div>`}).join('');
+  updateFinalCountdown();
   updBadge();
 }
 let CD=new Date();
@@ -728,6 +843,7 @@ function init(){
   if(S.gOK){document.getElementById('gdot').classList.add('on');document.getElementById('glbl').textContent='Google · Connected'}
   if(S.aOK){document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${S.appleEvents.length} events`}
   updBadge();
+  startFinalCountdown();
   syncICloudCalendar(true);
   setInterval(()=>syncICloudCalendar(true),30*60*1000);
 }
