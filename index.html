@@ -341,7 +341,7 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
   </nav>
   <div id="sb-foot">
     <div class="srow" onclick="gp('settings',document.querySelector('[onclick*=settings]'))"><div class="sdot" id="gdot"></div><span id="glbl">Google Calendar</span></div>
-    <div class="srow" onclick="gp('settings',document.querySelector('[onclick*=settings]'))"><div class="sdot" id="adot"></div><span id="albl">Apple Calendar</span></div>
+    <div class="srow" onclick="gp('settings',document.querySelector('[onclick*=settings]'))"><div class="sdot" id="adot"></div><span id="albl">Subscribed Calendars</span></div>
   </div>
 </aside>
 
@@ -397,7 +397,7 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
   <!-- CALENDAR -->
   <div class="page" id="page-calendar">
     <div class="ph">
-      <div class="ph-left"><div class="ptitle">Cal<span>endar</span></div><div class="psub">Google · Apple · Local events</div></div>
+      <div class="ph-left"><div class="ptitle">Cal<span>endar</span></div><div class="psub">Google · Subscribed · Local events</div></div>
       <div class="pa">
         <span class="tag blue">Google</span><span class="tag amber">Apple</span><span class="tag accent">Local</span><span class="tag green">Reminders</span>
         <button class="btn primary" onclick="om('mev')">+ Event</button>
@@ -494,16 +494,16 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
         </div>
       </div>
       <div class="ssect">
-        <div class="shd">Apple Calendar (.ics Import)</div>
+        <div class="shd">Subscribed Calendars (.ics Import)</div>
         <div class="sbd">
           <div class="fg">
-            <label class="fl">Subscribe via iCloud webcal or import .ics file</label>
+            <label class="fl">Auto-sync iCloud + ESCP and optionally import .ics file</label>
             <input type="file" accept=".ics" id="icsfile" onchange="importICS(event)" style="display:none">
-            <button class="btn primary" onclick="syncICloudCalendar(false)">Sync iCloud Webcal</button>
+            <button class="btn primary" onclick="syncICloudCalendar(false)">Sync Calendars</button>
             <button class="btn" onclick="document.getElementById('icsfile').click()">Choose .ics File</button>
             <span id="astatus" style="font-size:11px;color:var(--muted);font-family:var(--f-mono);margin-left:12px"></span>
           </div>
-          <div class="ibox" style="border-left-color:var(--amber)">This site auto-syncs your iCloud webcal feed on load and refreshes periodically. You can also sync manually here.</div>
+          <div class="ibox" style="border-left-color:var(--amber)">This site auto-syncs your iCloud and ESCP calendar feeds on load and refreshes periodically. You can also sync manually here.</div>
         </div>
       </div>
       <div class="ssect">
@@ -785,8 +785,8 @@ function updRDay(){const f=document.getElementById('rfreq').value,sel=document.g
 function sgc(){localStorage.setItem('gci',document.getElementById('gcid').value);localStorage.setItem('gak',document.getElementById('gapikey').value)}
 function connectGoogle(){const ci=localStorage.getItem('gci')||document.getElementById('gcid').value,ak=localStorage.getItem('gak')||document.getElementById('gapikey').value;if(!ci||!ak){alert('Enter Client ID and API Key first.');return}if(typeof gapi==='undefined'){document.getElementById('gstatus').textContent='Google API not loaded.';return}gapi.load('client:auth2',()=>{gapi.client.init({apiKey:ak,clientId:ci,discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],scope:'https://www.googleapis.com/auth/calendar.readonly'}).then(()=>{const a=gapi.auth2.getAuthInstance();if(a.isSignedIn.get())onGIn();else a.signIn().then(onGIn).catch(()=>{document.getElementById('gstatus').textContent='Cancelled.'})}).catch(e=>{document.getElementById('gstatus').textContent='Error: '+(e.details||e.message)})})}
 function onGIn(){S.gOK=true;save();document.getElementById('gdot').classList.add('on');document.getElementById('glbl').textContent='Google · Connected';document.getElementById('gstatus').textContent='Fetching...';const tm=new Date();tm.setMonth(tm.getMonth()-1);const tx=new Date();tx.setMonth(tx.getMonth()+3);gapi.client.calendar.events.list({calendarId:'primary',timeMin:tm.toISOString(),timeMax:tx.toISOString(),singleEvents:true,maxResults:250,orderBy:'startTime'}).then(r=>{S.googleEvents=(r.result.items||[]).map(e=>({id:e.id,title:e.summary||'(No title)',date:(e.start.dateTime||e.start.date||'').slice(0,10)}));save();document.getElementById('gstatus').textContent=`${S.googleEvents.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()})}
-async function syncICloudCalendar(silent){const st=document.getElementById('astatus');if(!silent&&st)st.textContent='Syncing iCloud calendar...';try{const r=await fetch(ICLOUD_SYNC_ENDPOINT,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const evs=parseICS(await r.text());S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${evs.length} events`;if(st)st.textContent=`Synced ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()}catch(e){if(!silent&&st)st.textContent='iCloud sync failed';console.error('iCloud sync failed',e)}}
-function importICS(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const evs=parseICS(e.target.result);S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${evs.length} events`;document.getElementById('astatus').textContent=`Imported ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()};r.readAsText(f)}
+async function syncICloudCalendar(silent){const st=document.getElementById('astatus');if(!silent&&st)st.textContent='Syncing subscribed calendars...';try{const r=await fetch(ICLOUD_SYNC_ENDPOINT,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const evs=parseICS(await r.text());S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Subscribed · ${evs.length} events`;if(st)st.textContent=`Synced ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()}catch(e){if(!silent&&st)st.textContent='Calendar sync failed';console.error('Calendar sync failed',e)}}
+function importICS(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const evs=parseICS(e.target.result);S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Subscribed · ${evs.length} events`;document.getElementById('astatus').textContent=`Imported ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()};r.readAsText(f)}
 function parseICS(data){const ev=[];const bl=data.split('BEGIN:VEVENT');for(let i=1;i<bl.length;i++){const b=bl[i],sm=(b.match(/SUMMARY:(.*)/)?.[1]||'').trim(),dt=b.match(/DTSTART[^:]*:(.*)/)?.[1]?.trim()||'';if(!sm||!dt)continue;const rw=dt.replace(/T.*/,'').replace(/-/g,'');if(rw.length===8)ev.push({id:uid(),title:sm,date:rw.slice(0,4)+'-'+rw.slice(4,6)+'-'+rw.slice(6,8)})}return ev}
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download='howieOS-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
 function importData(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{S={...S,...JSON.parse(e.target.result)};save();renderDash();alert('Imported!')}catch{alert('Invalid JSON')}};r.readAsText(f)}
@@ -798,7 +798,7 @@ function init(){
   if(gci&&document.getElementById('gcid'))document.getElementById('gcid').value=gci;
   if(gak&&document.getElementById('gapikey'))document.getElementById('gapikey').value=gak;
   if(S.gOK){document.getElementById('gdot').classList.add('on');document.getElementById('glbl').textContent='Google · Connected'}
-  if(S.aOK){document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${S.appleEvents.length} events`}
+  if(S.aOK){document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Subscribed · ${S.appleEvents.length} events`}
   updBadge();
   startFinalCountdown();
   syncICloudCalendar(true);
