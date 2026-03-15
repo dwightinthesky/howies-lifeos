@@ -466,11 +466,11 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
           <div class="fg">
             <label class="fl">Subscribe via iCloud webcal or import .ics file</label>
             <input type="file" accept=".ics" id="icsfile" onchange="importICS(event)" style="display:none">
-            <button class="btn primary" onclick="subscribeICloudCal(true)">Subscribe iCloud Calendar</button>
+            <button class="btn primary" onclick="syncICloudCalendar(false)">Sync iCloud Webcal</button>
             <button class="btn" onclick="document.getElementById('icsfile').click()">Choose .ics File</button>
             <span id="astatus" style="font-size:11px;color:var(--muted);font-family:var(--f-mono);margin-left:12px"></span>
           </div>
-          <div class="ibox" style="border-left-color:var(--amber)">The site can trigger a webcal subscribe prompt. Some browsers require user interaction and may block fully automatic subscribe.</div>
+          <div class="ibox" style="border-left-color:var(--amber)">This site auto-syncs your iCloud webcal feed on load and refreshes periodically. You can also sync manually here.</div>
         </div>
       </div>
       <div class="ssect">
@@ -590,7 +590,7 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
 <script>
 let S={todos:[],projects:[],courses:[],internships:[],reminders:[],events:[],googleEvents:[],appleEvents:[],gOK:false,aOK:false};
 const DR=[{id:uid(),name:'房租',freq:'monthly',day:1,icon:'🏠'},{id:uid(),name:'水電費',freq:'monthly',day:5,icon:'💡'},{id:uid(),name:'諮商',freq:'weekly',day:3,icon:'🧠'}];
-const ICLOUD_WEBCAL_URL='webcal://p111-caldav.icloud.com/published/2/MTc0MzY0MzU0NDMxNzQzNjxDqL2A-wTmFJJ-CyH4Rit9MZWLPdKktwoRFaWzYcYs1z88Fgf-_9Q1HPA1Pa50Nsi-X-qH0gD5wl-IGzVE3Nk';
+const ICLOUD_SYNC_ENDPOINT='/api/icloud-calendar';
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function save(){localStorage.setItem('h_os5',JSON.stringify(S))}
 function load(){const d=localStorage.getItem('h_os5');if(d){try{S={...S,...JSON.parse(d)}}catch{}}else{S.reminders=DR;save()}}
@@ -714,8 +714,7 @@ function updRDay(){const f=document.getElementById('rfreq').value,sel=document.g
 function sgc(){localStorage.setItem('gci',document.getElementById('gcid').value);localStorage.setItem('gak',document.getElementById('gapikey').value)}
 function connectGoogle(){const ci=localStorage.getItem('gci')||document.getElementById('gcid').value,ak=localStorage.getItem('gak')||document.getElementById('gapikey').value;if(!ci||!ak){alert('Enter Client ID and API Key first.');return}if(typeof gapi==='undefined'){document.getElementById('gstatus').textContent='Google API not loaded.';return}gapi.load('client:auth2',()=>{gapi.client.init({apiKey:ak,clientId:ci,discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],scope:'https://www.googleapis.com/auth/calendar.readonly'}).then(()=>{const a=gapi.auth2.getAuthInstance();if(a.isSignedIn.get())onGIn();else a.signIn().then(onGIn).catch(()=>{document.getElementById('gstatus').textContent='Cancelled.'})}).catch(e=>{document.getElementById('gstatus').textContent='Error: '+(e.details||e.message)})})}
 function onGIn(){S.gOK=true;save();document.getElementById('gdot').classList.add('on');document.getElementById('glbl').textContent='Google · Connected';document.getElementById('gstatus').textContent='Fetching...';const tm=new Date();tm.setMonth(tm.getMonth()-1);const tx=new Date();tx.setMonth(tx.getMonth()+3);gapi.client.calendar.events.list({calendarId:'primary',timeMin:tm.toISOString(),timeMax:tx.toISOString(),singleEvents:true,maxResults:250,orderBy:'startTime'}).then(r=>{S.googleEvents=(r.result.items||[]).map(e=>({id:e.id,title:e.summary||'(No title)',date:(e.start.dateTime||e.start.date||'').slice(0,10)}));save();document.getElementById('gstatus').textContent=`${S.googleEvents.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()})}
-function subscribeICloudCal(manual){window.location.href=ICLOUD_WEBCAL_URL;const st=document.getElementById('astatus');if(st)st.textContent='Opened iCloud subscribe prompt.';if(manual)localStorage.setItem('h_os5_icloud_subscribed','1')}
-function autoPromptICloudSub(){if(localStorage.getItem('h_os5_icloud_prompted'))return;localStorage.setItem('h_os5_icloud_prompted','1');setTimeout(()=>{if(confirm('Subscribe to your iCloud calendar now?'))subscribeICloudCal(false)},900)}
+async function syncICloudCalendar(silent){const st=document.getElementById('astatus');if(!silent&&st)st.textContent='Syncing iCloud calendar...';try{const r=await fetch(ICLOUD_SYNC_ENDPOINT,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const evs=parseICS(await r.text());S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${evs.length} events`;if(st)st.textContent=`Synced ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()}catch(e){if(!silent&&st)st.textContent='iCloud sync failed';console.error('iCloud sync failed',e)}}
 function importICS(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const evs=parseICS(e.target.result);S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${evs.length} events`;document.getElementById('astatus').textContent=`Imported ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()};r.readAsText(f)}
 function parseICS(data){const ev=[];const bl=data.split('BEGIN:VEVENT');for(let i=1;i<bl.length;i++){const b=bl[i],sm=(b.match(/SUMMARY:(.*)/)?.[1]||'').trim(),dt=b.match(/DTSTART[^:]*:(.*)/)?.[1]?.trim()||'';if(!sm||!dt)continue;const rw=dt.replace(/T.*/,'').replace(/-/g,'');if(rw.length===8)ev.push({id:uid(),title:sm,date:rw.slice(0,4)+'-'+rw.slice(4,6)+'-'+rw.slice(6,8)})}return ev}
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download='howieOS-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
@@ -729,7 +728,8 @@ function init(){
   if(S.gOK){document.getElementById('gdot').classList.add('on');document.getElementById('glbl').textContent='Google · Connected'}
   if(S.aOK){document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Apple · ${S.appleEvents.length} events`}
   updBadge();
-  autoPromptICloudSub();
+  syncICloudCalendar(true);
+  setInterval(()=>syncICloudCalendar(true),30*60*1000);
 }
 init();
 </script>
