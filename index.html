@@ -172,7 +172,7 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
 .cevt{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:var(--f-mono);line-height:1.2}
 .cevt.google{background:rgba(87,217,255,.1);color:var(--accent2)}
 .cevt.apple{background:rgba(255,184,48,.1);color:var(--amber)}
-.cevt.course{background:rgba(255,107,107,.12);color:var(--accent3)}
+.cevt.course{background:rgba(87,217,255,.1);color:var(--accent2)}
 .cevt.local{background:rgba(200,255,87,.1);color:var(--accent)}
 .cevt.reminder{background:rgba(87,255,184,.1);color:var(--green)}
 .cevt.more{background:var(--surf2);color:var(--muted);border:1px dashed var(--border2)}
@@ -401,7 +401,7 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
     <div class="ph">
       <div class="ph-left"><div class="ptitle">Cal<span>endar</span></div><div class="psub">Google · Subscribed · Local events</div></div>
       <div class="pa">
-        <span class="tag blue">Google</span><span class="tag red">Course</span><span class="tag amber">Subscribed</span><span class="tag accent">Local</span><span class="tag green">Reminders</span>
+        <span class="tag blue">Google</span><span class="tag blue">Course</span><span class="tag amber">Subscribed</span><span class="tag accent">Local</span><span class="tag green">Reminders</span>
         <button class="btn primary" onclick="om('mev')">+ Event</button>
       </div>
     </div>
@@ -747,7 +747,7 @@ function openCD(ds){
   const rv=S.reminders.filter(r=>r.freq==='weekly'?parseInt(r.day)===dow:parseInt(r.day)===dd).map(r=>({src:'reminder',detail:`${r.icon||'🔔'} ${r.name}`}));
   const all=[...ev.map(e=>({src:e.src,detail:e.detail})),...rv];
   document.getElementById('mdaytitle').textContent=`${ds} · ${all.length} item${all.length===1?'':'s'}`;
-  document.getElementById('mdaylist').innerHTML=all.length===0?`<div class="empty" style="padding:16px">No events.</div>`:all.map(e=>`<div class="item" style="border-color:var(--border);margin-bottom:6px"><span class="tag ${e.src==='course'?'red':e.src==='google'?'blue':e.src==='local'?'accent':e.src==='reminder'?'green':'amber'}" style="font-size:9px">${e.src==='course'?'Course':e.src==='google'?'Google':e.src==='local'?'Local':e.src==='reminder'?'Reminder':'Subscribed'}</span><div class="ilabel">${escHtml(e.detail)}</div></div>`).join('');
+  document.getElementById('mdaylist').innerHTML=all.length===0?`<div class="empty" style="padding:16px">No events.</div>`:all.map(e=>`<div class="item" style="border-color:var(--border);margin-bottom:6px"><span class="tag ${e.src==='course'?'blue':e.src==='google'?'blue':e.src==='local'?'accent':e.src==='reminder'?'green':'amber'}" style="font-size:9px">${e.src==='course'?'Course':e.src==='google'?'Google':e.src==='local'?'Local':e.src==='reminder'?'Reminder':'Subscribed'}</span><div class="ilabel">${escHtml(e.detail)}</div></div>`).join('');
   om('mday');
 }
 function addEventFromDay(){cm('mday');om('mev');if(dayModalDate)document.getElementById('evdate').value=dayModalDate}
