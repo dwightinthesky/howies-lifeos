@@ -632,12 +632,31 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
 let S={todos:[],projects:[],courses:[],internships:[],reminders:[],events:[],googleEvents:[],appleEvents:[],gOK:false,aOK:false};
 const DR=[{id:uid(),name:'房租',freq:'monthly',day:1,icon:'🏠'},{id:uid(),name:'水電費',freq:'monthly',day:5,icon:'💡'},{id:uid(),name:'諮商',freq:'weekly',day:3,icon:'🧠'}];
 const ICLOUD_SYNC_ENDPOINT='/api/icloud-calendar';
+const STORAGE_PRIMARY_KEY='h_os5';
+const STORAGE_FALLBACK_KEYS=['h_os'];
 const FINAL_MATCH=/(final|finals|final exam|exam|midterm|期末|大考)/i;
 const FINAL_FALLBACK_DAYS=30;
 let FINAL_TIMER=null;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function save(){localStorage.setItem('h_os5',JSON.stringify(S))}
-function load(){const d=localStorage.getItem('h_os5');if(d){try{S={...S,...JSON.parse(d)}}catch{}}else{S.reminders=DR;save()}}
+function save(){localStorage.setItem(STORAGE_PRIMARY_KEY,JSON.stringify(S))}
+function load(){
+  const keys=[STORAGE_PRIMARY_KEY,...STORAGE_FALLBACK_KEYS];
+  let loaded=false;
+  for(const k of keys){
+    const d=localStorage.getItem(k);
+    if(!d)continue;
+    try{
+      const parsed=JSON.parse(d);
+      if(parsed&&typeof parsed==='object'){
+        S={...S,...parsed};
+        loaded=true;
+        if(k!==STORAGE_PRIMARY_KEY)save();
+        break;
+      }
+    }catch{}
+  }
+  if(!loaded){S.reminders=DR;save()}
+}
 function gp(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
