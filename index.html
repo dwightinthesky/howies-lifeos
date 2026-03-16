@@ -163,17 +163,19 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
 .caltitle{font-family:var(--f-disp);font-size:20px;font-weight:800;flex:1;letter-spacing:-.02em}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border-radius:8px;overflow:hidden;border:1px solid var(--border)}
 .cdh{background:var(--surf2);text-align:center;padding:9px 4px;font-size:9px;font-family:var(--f-mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-.cday{background:var(--surf);min-height:88px;padding:8px;cursor:pointer;transition:background .1s}
+.cday{background:var(--surf);height:96px;padding:8px;cursor:pointer;transition:background .1s;overflow:hidden}
 .cday:hover{background:var(--surf2)}
 .cday.other{background:var(--bg);opacity:.5}
 .cday.today{background:rgba(200,255,87,.05);outline:1px solid rgba(200,255,87,.2)}
 .cday.today .dn{color:var(--accent)}
 .dn{font-size:11px;font-family:var(--f-mono);color:var(--muted);margin-bottom:3px}
-.cevt{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:var(--f-mono)}
+.cevt{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:var(--f-mono);line-height:1.2}
 .cevt.google{background:rgba(87,217,255,.1);color:var(--accent2)}
 .cevt.apple{background:rgba(255,184,48,.1);color:var(--amber)}
+.cevt.course{background:rgba(255,107,107,.12);color:var(--accent3)}
 .cevt.local{background:rgba(200,255,87,.1);color:var(--accent)}
 .cevt.reminder{background:rgba(87,255,184,.1);color:var(--green)}
+.cevt.more{background:var(--surf2);color:var(--muted);border:1px dashed var(--border2)}
 
 /* KANBAN */
 .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
@@ -399,7 +401,7 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
     <div class="ph">
       <div class="ph-left"><div class="ptitle">Cal<span>endar</span></div><div class="psub">Google · Subscribed · Local events</div></div>
       <div class="pa">
-        <span class="tag blue">Google</span><span class="tag amber">Apple</span><span class="tag accent">Local</span><span class="tag green">Reminders</span>
+        <span class="tag blue">Google</span><span class="tag red">Course</span><span class="tag amber">Subscribed</span><span class="tag accent">Local</span><span class="tag green">Reminders</span>
         <button class="btn primary" onclick="om('mev')">+ Event</button>
       </div>
     </div>
@@ -620,6 +622,12 @@ nav{padding:8px 8px;flex:1;overflow-y:auto}
   <div class="mft"><button class="btn" onclick="cm('mev')">Cancel</button><button class="btn primary" onclick="saveEv()">Save</button></div>
 </div></div>
 
+<div class="moverlay" id="mday"><div class="modal">
+  <div class="mhd"><div class="mtitle" id="mdaytitle">Day Details</div><button class="mx" onclick="cm('mday')">✕</button></div>
+  <div class="mbd" id="mdaylist"></div>
+  <div class="mft"><button class="btn" onclick="cm('mday')">Close</button><button class="btn primary" onclick="addEventFromDay()">+ Add Event</button></div>
+</div></div>
+
 <script>
 let S={todos:[],projects:[],courses:[],internships:[],reminders:[],events:[],googleEvents:[],appleEvents:[],gOK:false,aOK:false};
 const DR=[{id:uid(),name:'房租',freq:'monthly',day:1,icon:'🏠'},{id:uid(),name:'水電費',freq:'monthly',day:5,icon:'💡'},{id:uid(),name:'諮商',freq:'weekly',day:3,icon:'🧠'}];
@@ -700,6 +708,16 @@ function renderDash(){
 }
 let CD=new Date();
 const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+let dayModalDate='';
+function escHtml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;')}
+function calItemsByDate(ds){
+  const base=[
+    ...S.googleEvents.filter(e=>e.date===ds).map(e=>({...e,src:'google',display:e.shortTitle||e.title,detail:e.title})),
+    ...S.appleEvents.filter(e=>e.date===ds).map(e=>({...e,src:e.kind==='course'?'course':'apple',display:e.kind==='course'?(e.shortTitle||e.title):(e.shortTitle||e.title),detail:e.title})),
+    ...S.events.filter(e=>e.date===ds).map(e=>({...e,src:'local',display:e.title,detail:e.title})),
+  ];
+  return base;
+}
 function renderCal(){
   document.getElementById('callbl').textContent=MN[CD.getMonth()]+' '+CD.getFullYear();
   const yr=CD.getFullYear(),mo=CD.getMonth(),fd=new Date(yr,mo,1).getDay(),dim=new Date(yr,mo+1,0).getDate(),td=new Date();
@@ -709,9 +727,11 @@ function renderCal(){
   for(let d=1;d<=dim;d++){
     const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const it=d===td.getDate()&&mo===td.getMonth()&&yr===td.getFullYear();
-    const ev=[...S.googleEvents.filter(e=>e.date===ds).map(e=>({...e,src:'google'})),...S.appleEvents.filter(e=>e.date===ds).map(e=>({...e,src:'apple'})),...S.events.filter(e=>e.date===ds).map(e=>({...e,src:'local'}))];
-    const rv=S.reminders.filter(r=>r.freq==='weekly'?parseInt(r.day)===new Date(yr,mo,d).getDay():parseInt(r.day)===d);
-    h+=`<div class="cday${it?' today':''}" onclick="openCD('${ds}')"><div class="dn">${d}</div>${ev.map(e=>`<div class="cevt ${e.src}">${e.title}</div>`).join('')}${rv.map(r=>`<div class="cevt reminder">${r.icon||'🔔'} ${r.name}</div>`).join('')}</div>`;
+    const ev=calItemsByDate(ds);
+    const rv=S.reminders.filter(r=>r.freq==='weekly'?parseInt(r.day)===new Date(yr,mo,d).getDay():parseInt(r.day)===d).map(r=>({src:'reminder',display:`${r.icon||'🔔'} ${r.name}`,detail:`Reminder: ${r.name}`}));
+    const all=[...ev,...rv];
+    const visible=all.slice(0,3),extra=Math.max(0,all.length-visible.length);
+    h+=`<div class="cday${it?' today':''}" onclick="openCD('${ds}')"><div class="dn">${d}</div>${visible.map(e=>`<div class="cevt ${e.src}" title="${escHtml(e.detail)}">${escHtml(e.display)}</div>`).join('')}${extra>0?`<div class="cevt more">+${extra} more</div>`:''}</div>`;
   }
   const r2=7-((fd+dim)%7);if(r2<7)for(let i=1;i<=r2;i++)h+=`<div class="cday other"><div class="dn">${i}</div></div>`;
   document.getElementById('calgrid').innerHTML=h;
@@ -719,7 +739,18 @@ function renderCal(){
 function cprev(){CD=new Date(CD.getFullYear(),CD.getMonth()-1,1);renderCal()}
 function cnext(){CD=new Date(CD.getFullYear(),CD.getMonth()+1,1);renderCal()}
 function ctoday(){CD=new Date();renderCal()}
-function openCD(ds){om('mev');document.getElementById('evdate').value=ds}
+function openCD(ds){
+  dayModalDate=ds;
+  const ev=calItemsByDate(ds);
+  const [yy,mm,dd]=ds.split('-').map(n=>parseInt(n,10));
+  const dow=new Date(yy,mm-1,dd).getDay();
+  const rv=S.reminders.filter(r=>r.freq==='weekly'?parseInt(r.day)===dow:parseInt(r.day)===dd).map(r=>({src:'reminder',detail:`${r.icon||'🔔'} ${r.name}`}));
+  const all=[...ev.map(e=>({src:e.src,detail:e.detail})),...rv];
+  document.getElementById('mdaytitle').textContent=`${ds} · ${all.length} item${all.length===1?'':'s'}`;
+  document.getElementById('mdaylist').innerHTML=all.length===0?`<div class="empty" style="padding:16px">No events.</div>`:all.map(e=>`<div class="item" style="border-color:var(--border);margin-bottom:6px"><span class="tag ${e.src==='course'?'red':e.src==='google'?'blue':e.src==='local'?'accent':e.src==='reminder'?'green':'amber'}" style="font-size:9px">${e.src==='course'?'Course':e.src==='google'?'Google':e.src==='local'?'Local':e.src==='reminder'?'Reminder':'Subscribed'}</span><div class="ilabel">${escHtml(e.detail)}</div></div>`).join('');
+  om('mday');
+}
+function addEventFromDay(){cm('mday');om('mev');if(dayModalDate)document.getElementById('evdate').value=dayModalDate}
 function saveEv(){const t=document.getElementById('evtitle').value.trim(),d=document.getElementById('evdate').value;if(!t||!d)return;S.events.push({id:uid(),title:t,date:d,time:document.getElementById('evtime').value});save();cm('mev');document.getElementById('evtitle').value='';renderCal()}
 const PS=['backlog','progress','review','done'],PC={
   backlog:{l:'Backlog',c:'var(--muted)',dot:'rgba(255,255,255,.2)'},
@@ -787,7 +818,83 @@ function connectGoogle(){const ci=localStorage.getItem('gci')||document.getEleme
 function onGIn(){S.gOK=true;save();document.getElementById('gdot').classList.add('on');document.getElementById('glbl').textContent='Google · Connected';document.getElementById('gstatus').textContent='Fetching...';const tm=new Date();tm.setMonth(tm.getMonth()-1);const tx=new Date();tx.setMonth(tx.getMonth()+3);gapi.client.calendar.events.list({calendarId:'primary',timeMin:tm.toISOString(),timeMax:tx.toISOString(),singleEvents:true,maxResults:250,orderBy:'startTime'}).then(r=>{S.googleEvents=(r.result.items||[]).map(e=>({id:e.id,title:e.summary||'(No title)',date:(e.start.dateTime||e.start.date||'').slice(0,10)}));save();document.getElementById('gstatus').textContent=`${S.googleEvents.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()})}
 async function syncICloudCalendar(silent){const st=document.getElementById('astatus');if(!silent&&st)st.textContent='Syncing subscribed calendars...';try{const r=await fetch(ICLOUD_SYNC_ENDPOINT,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const failed=(r.headers.get('X-Calendar-Failed-Sources')||'').trim();const src=(r.headers.get('X-Calendar-Sources')||'').trim();const evs=parseICS(await r.text());S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Subscribed · ${evs.length} events`;if(st){if(failed){st.textContent=`Synced ${evs.length} events (failed: ${failed})`}else{st.textContent=`Synced ${evs.length} events${src?` (${src})`:''}`}}if(document.getElementById('page-calendar').classList.contains('active'))renderCal()}catch(e){if(!silent&&st)st.textContent='Calendar sync failed';console.error('Calendar sync failed',e)}}
 function importICS(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const evs=parseICS(e.target.result);S.appleEvents=evs;S.aOK=true;save();document.getElementById('adot').classList.add('on');document.getElementById('albl').textContent=`Subscribed · ${evs.length} events`;document.getElementById('astatus').textContent=`Imported ${evs.length} events`;if(document.getElementById('page-calendar').classList.contains('active'))renderCal()};r.readAsText(f)}
-function parseICS(data){const ev=[];const bl=data.split('BEGIN:VEVENT');for(let i=1;i<bl.length;i++){const b=bl[i],sm=(b.match(/SUMMARY:(.*)/)?.[1]||'').trim(),dt=b.match(/DTSTART[^:]*:(.*)/)?.[1]?.trim()||'';if(!sm||!dt)continue;const rw=dt.replace(/T.*/,'').replace(/-/g,'');if(rw.length===8)ev.push({id:uid(),title:sm,date:rw.slice(0,4)+'-'+rw.slice(4,6)+'-'+rw.slice(6,8)})}return ev}
+function cleanEscpText(s){
+  return String(s||'')
+    .replace(/\*\*/g,'')
+    .replace(/~~/g,'')
+    .replace(/\\,/g,',')
+    .replace(/\\;/g,';')
+    .replace(/\\n/g,' ')
+    .replace(/&#58;/g,':')
+    .replace(/<\s*br\s*\/?>/gi,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function extractEscpField(text,labels){
+  const src=cleanEscpText(text);
+  const lbs=labels.map(l=>l.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+  const re=new RegExp(`(?:^|\\s)(?:${lbs})\\s*:?\\s*([\\s\\S]*?)(?=(?:\\s(?:Course|Course code|Professor|Campus|Room|Start time|End time|Teaching language|Course details)\\s*:)|$)`,'i');
+  const m=src.match(re);
+  return m?cleanEscpText(m[1]):'';
+}
+function locationToRoom(location){
+  const loc=cleanEscpText(location);
+  if(!loc)return '';
+  const p=loc.split('/').map(s=>s.trim()).filter(Boolean);
+  return p.length?p[p.length-1]:loc;
+}
+function looksLikeRoom(v){return /(amphi|amphith|salle|room|hall|auditorium|campus|coeur|marcel|paris|london|berlin|madrid|turin|\d{3})/i.test(v||'')}
+function looksLikeProf(v){return /[A-Za-zÀ-ÿ]{2,}.*\s+[A-Za-zÀ-ÿ]{2,}/.test(v||'')}
+function formatEscpCourse(summary,description,location){
+  const cleanSummary=cleanEscpText(summary).replace(/\s(?:DESCRIPTION|DTSTART|DTEND|UID|DTSTAMP|LOCATION|STATUS):[\s\S]*$/,'').trim();
+  const parts=cleanSummary.split(' - ').map(p=>cleanEscpText(p)).filter(Boolean);
+  let course=parts[0]||extractEscpField(description,['Course'])||'Course';
+  let room='';
+  let prof='';
+  if(parts.length>=3){room=parts[1];prof=parts[parts.length-1]}
+  else if(parts.length===2){
+    if(looksLikeRoom(parts[1])&&!looksLikeProf(parts[1]))room=parts[1];
+    else prof=parts[1];
+  }
+  if(!room)room=extractEscpField(description,['Room'])||locationToRoom(location)||'TBA';
+  if(!prof)prof=extractEscpField(description,['Professor'])||'TBA';
+  course=course||'Course';room=room||'TBA';prof=prof||'TBA';
+  return{title:`${course} - ${room} - ${prof}`,shortTitle:course};
+}
+function parseICS(data){
+  const ev=[],text=String(data||'').replace(/\r\n/g,'\n');
+  const blocks=text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g)||[];
+  for(const b of blocks){
+    const fields={};
+    const rx=/(^|\s)([A-Z][A-Z0-9-]*)(?:;[^:\n]*)?:/g;
+    const keys=[];
+    let m;
+    while((m=rx.exec(b))){keys.push({key:m[2],idx:m.index+m[1].length,valStart:rx.lastIndex});}
+    for(let i=0;i<keys.length;i++){
+      const cur=keys[i],nxt=keys[i+1];
+      const raw=b.slice(cur.valStart,nxt?nxt.idx:b.length).trim();
+      if(!(cur.key in fields))fields[cur.key]=raw;
+    }
+    const sm=fields.SUMMARY||'';
+    const dt=fields.DTSTART||'';
+    const uidVal=fields.UID||'';
+    const desc=fields.DESCRIPTION||'';
+    const location=fields.LOCATION||'';
+    if(!sm||!dt)continue;
+    const digits=dt.replace(/[^0-9]/g,'');
+    if(digits.length<8)continue;
+    const date=`${digits.slice(0,4)}-${digits.slice(4,6)}-${digits.slice(6,8)}`;
+    const isCourse=(uidVal||'').includes('@escp-calendars');
+    if(isCourse){
+      const f=formatEscpCourse(sm,desc,location);
+      ev.push({id:uidVal||uid(),title:f.title,shortTitle:f.shortTitle,date,kind:'course'});
+    }else{
+      const clean=cleanEscpText(sm);
+      ev.push({id:uidVal||uid(),title:clean,shortTitle:clean,date,kind:'subscribed'});
+    }
+  }
+  return ev;
+}
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download='howieOS-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
 function importData(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{S={...S,...JSON.parse(e.target.result)};save();renderDash();alert('Imported!')}catch{alert('Invalid JSON')}};r.readAsText(f)}
 function clearAll(){if(!confirm('Delete ALL data?'))return;localStorage.clear();S={todos:[],projects:[],courses:[],internships:[],reminders:DR,events:[],googleEvents:[],appleEvents:[],gOK:false,aOK:false};save();renderDash();renderBar()}
